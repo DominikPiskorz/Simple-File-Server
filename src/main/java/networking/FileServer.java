@@ -1,5 +1,6 @@
-import io.netty.bootstrap.ServerBootstrap;
+package networking;
 
+import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -29,7 +30,7 @@ public class FileServer {
                     .childHandler(new ChannelInitializer<SocketChannel>(){
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
-                            ch.pipeline().addLast(new FileServerHandler());
+                            ch.pipeline().addLast(new FileServerEncoder(), new FileServerDecoder(), new FileServerHandler());
                         }
                     })
                     .option(ChannelOption.SO_BACKLOG, 128)
