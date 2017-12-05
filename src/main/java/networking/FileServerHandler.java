@@ -1,29 +1,39 @@
 package networking;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import files.FileHandler;
+import io.netty.channel.*;
 import io.netty.util.ReferenceCountUtil;
-import utils.UnixTime;
+import message.Message;
+import message.MsgAddFile;
+import message.MsgPing;
+import message.MsgReply;
 
 /**
  * Handles a server-side channel.
  */
-public class FileServerHandler extends ChannelInboundHandlerAdapter{
+//public class FileServerHandler extends ChannelInboundHandlerAdapter{
+public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
+
+    private FileHandler fileHandler;
+
+
+    public FileServerHandler(FileHandler fileHandler) {
+        this.fileHandler = fileHandler;
+    }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg){
-        UnixTime m = (UnixTime) msg;
+    public void channelRead0(ChannelHandlerContext ctx, Message msg){
         System.out.println("Otrzymano:");
-        System.out.println(m);
-        ctx.close();
+        System.out.println(msg.toString());
+        processMessage(msg);
+        //ctx.close();
+
     }
 
     @Override
     public void channelActive(final ChannelHandlerContext ctx) {
         System.out.println("Polaczenie");
-        ChannelFuture f = ctx.writeAndFlush(new UnixTime());
+        ChannelFuture f = ctx.writeAndFlush(new MsgPing());
         //f.addListener(ChannelFutureListener.CLOSE);
     }
 
@@ -32,5 +42,22 @@ public class FileServerHandler extends ChannelInboundHandlerAdapter{
         // Close the connection when an exception is raised.
         cause.printStackTrace();
         ctx.close();
+    }
+
+    private Message processMessage(Message msg) {
+        switch (msg.getType()) {
+            case PING:
+                MsgReply reply = new MsgReply();
+                return reply;
+            case ADDFILE:
+                fileHandler.addFile((MsgAddFile) msg);
+                return null;
+            /*case CHUNK:
+            case LIST:
+            case REPLY:
+            case LOGIN:*/
+            default:
+                return null;
+        }
     }
 }

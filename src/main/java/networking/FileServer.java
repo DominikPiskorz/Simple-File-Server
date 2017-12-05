@@ -1,13 +1,24 @@
 package networking;
 
+import files.FileHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.serialization.ClassResolver;
+import io.netty.handler.codec.serialization.ClassResolvers;
+import io.netty.handler.codec.serialization.ObjectDecoder;
+import io.netty.handler.codec.serialization.ObjectEncoder;
+import message.Message;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.BufferedReader;
+import java.nio.file.Paths;
 
 /**
  * Handles a server-side channel.
@@ -15,24 +26,24 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 public class FileServer {
 
     private int port;
+    private boolean debug;
+    private String usersPath;
 
-    public FileServer(int port) {
+    public FileServer(int port, boolean debug, String usersPath) {
         this.port = port;
+        this.debug = debug;
+        this.usersPath = usersPath;
     }
 
     public void run() throws Exception {
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
+        final FileHandler fileHandler = new FileHandler(usersPath);
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
-                    .childHandler(new ChannelInitializer<SocketChannel>(){
-                        @Override
-                        public void initChannel(SocketChannel ch) throws Exception {
-                            ch.pipeline().addLast(new FileServerEncoder(), new FileServerDecoder(), new FileServerHandler());
-                        }
-                    })
+                    .childHandler(new FileServerInitializer(debug, fileHandler))
                     .option(ChannelOption.SO_BACKLOG, 128)
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
 
@@ -51,11 +62,19 @@ public class FileServer {
 
     public static void main(String[] args) throws Exception {
         int port;
+        boolean debug = true;
+        String usersPaths = FileSystems.getDefault().getPath("users").toString();
         if (args.length > 0) {
             port = Integer.parseInt(args[0]);
         } else {
             port = 8080;
         }
-        new FileServer(port).run();
+        new FileServer(port, debug, usersPaths).run();
+        /*String path1 = FileSystems.getDefault().getPath("test").toString();
+        //Path path = FileSystems.getDefault().getPath(Paths.get(path1),"uses.conf");
+        Path path = Paths.get(path1, "users.conf");
+        System.out.println(path.toAbsolutePath().toString());
+        //BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
+        //System.out.println(reader.readLine());*/
     }
 }
