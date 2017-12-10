@@ -1,28 +1,39 @@
 package networking;
 
-import files.FileHandler;
 import io.netty.channel.*;
-import io.netty.util.ReferenceCountUtil;
 import message.*;
+
+import java.util.concurrent.BlockingQueue;
 
 /**
  * Handles a server-side channel.
  */
 //public class FileServerHandler extends ChannelInboundHandlerAdapter{
 public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
+    private BlockingQueue<Message> inQueue;
+    private BlockingQueue<Message> outQueue;
+    private int partSize;
+    private enum State {
+        IDLE, DWN, UPL
+    }
+    private State state = State.IDLE;
+    private int fileParts;
 
-    private FileHandler fileHandler;
 
-
-    public FileServerHandler(FileHandler fileHandler) {
-        this.fileHandler = fileHandler;
+    public FileServerHandler(BlockingQueue<Message> inQueue, BlockingQueue<Message> outQueue, int partSize) {
+        this.inQueue = inQueue;
+        this.outQueue = outQueue;
+        this.partSize = partSize;
     }
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, Message msg){
         System.out.println("Otrzymano:");
         System.out.println(msg.toString());
-        processMessage(ctx, msg);
+        Message reply;
+        if ((reply = processMessage(ctx, msg)) != null)
+            ctx.writeAndFlush(reply);
+
         //ctx.close();
 
     }
@@ -42,34 +53,50 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
     }
 
     private Message processMessage(ChannelHandlerContext ctx, Message msg) {
-        switch (msg.getType()) {
-            case PING:
-                MsgReply reply = new MsgReply();
-                return reply;
-            case ADDFILE:
-                fileHandler.addFile((MsgAddFile) msg);
-                return null;
-            case SENDFILE:
-                sendFile(ctx, (MsgSendFile) msg);
-            /*case CHUNK:
-            case LIST:
-            case REPLY:
-            case LOGIN:*/
-            default:
-                return null;
+        try {
+            switch (msg.getType()) {
+                case PING:
+                    MsgReply reply = new MsgReply();
+                    return reply;
+                case ADDFILE:
+                    state = State.DWN;
+                    fileParts = (int) (((MsgAddFile) msg).getFileSize() + partSize) / partSize;
+                    inQueue.put(msg);
+                    return null;
+                case CHUNK:
+                    if (state != State.DWN)
+                        throw new IllegalStateException("Nie pobieram pliku.");
+                    inQueue.put(msg);
+                    if (((MsgFileChunk) msg).getPart() == fileParts)
+                        return outQueue.take();
+                    return null;
+                case GETFILE:
+                    state = State.UPL;
+                    sendFile(ctx, (MsgGetFile) msg);
+                    return new MsgOk();
+                /*case CHUNK:
+                case LIST:
+                case REPLY:
+                case LOGIN:*/
+                default:
+                    return null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
-    private void sendFile(ChannelHandlerContext ctx, MsgSendFile msg) {
-        byte[] buff;
-        //for(int n = 0; buff = fileHandler.filePart(msg.getPath(), n); n++);
-        int n = 0;
-        while(true){
-            buff = fileHandler.filePart(msg.getPath(), n);
-            if (buff == null)
-                break;
-            ctx.writeAndFlush(new MsgFileChunk(buff, n));
-            n++;
+    private void sendFile(ChannelHandlerContext ctx, MsgGetFile msg) {
+        try {
+            inQueue.put(msg);
+            Message out;
+            do {
+                out = outQueue.take();
+                ctx.writeAndFlush(out);
+            } while (out instanceof MsgFileChunk);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

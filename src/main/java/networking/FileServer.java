@@ -12,6 +12,7 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import message.Message;
+import message.MsgReply;
 
 import java.io.RandomAccessFile;
 import java.nio.charset.Charset;
@@ -22,6 +23,9 @@ import java.nio.file.Path;
 import java.io.BufferedReader;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 
 import static sun.nio.ch.IOStatus.EOF;
 
@@ -33,22 +37,25 @@ public class FileServer {
     private int port;
     private boolean debug;
     private String usersPath;
+    private int queueSize;
+    private int partSize;
 
-    public FileServer(int port, boolean debug, String usersPath) {
+    public FileServer(int port, int queueSize, int partSize, String usersPath, boolean debug) {
         this.port = port;
-        this.debug = debug;
+        this.queueSize = queueSize;
+        this.partSize = partSize;
         this.usersPath = usersPath;
+        this.debug = debug;
     }
 
     public void run() throws Exception {
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
-        final FileHandler fileHandler = new FileHandler(usersPath);
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
-                    .childHandler(new FileServerInitializer(debug, fileHandler))
+                    .childHandler(new FileServerInitializer(usersPath, queueSize, partSize, debug))
                     .option(ChannelOption.SO_BACKLOG, 128)
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
 
@@ -69,15 +76,17 @@ public class FileServer {
         int port;
         boolean debug = true;
         String usersPaths = FileSystems.getDefault().getPath("users").toString();
+        int queueSize = 256;
+        int partSize = (int) (0.5 * 1024 * 1024);
         if (args.length > 0) {
             port = Integer.parseInt(args[0]);
         } else {
             port = 8080;
         }
-        //new FileServer(port, debug, usersPaths).run();
+        new FileServer(port, queueSize, partSize, usersPaths, debug).run();
         //String path1 = FileSystems.getDefault().getPath("test").toString();
         //Path path = FileSystems.getDefault().getPath(Paths.get(path1),"uses.conf");
-        Path path = Paths.get("users.conf");
+        /*Path path = Paths.get("users.conf");
         System.out.println(path.toAbsolutePath().toString());
         RandomAccessFile file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
         path = Paths.get("users2.conf");
@@ -93,6 +102,6 @@ public class FileServer {
         buff = "abc".getBytes();
         file2.write(buff);
         file.close();
-        file2.close();
+        file2.close();*/
     }
 }

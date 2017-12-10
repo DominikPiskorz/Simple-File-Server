@@ -1,5 +1,7 @@
 package message;
 
+import java.nio.charset.Charset;
+
 public class MsgFileChunk extends Message {
     private byte[] data;
     private int fileSize;
@@ -35,5 +37,14 @@ public class MsgFileChunk extends Message {
 
     public int getEnd() {
         return end;
+    }
+
+    public int getPart() {
+        return part;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " Part: " + part;// + " Data: " + new String(data, Charset.forName("UTF-8"));
     }
 }

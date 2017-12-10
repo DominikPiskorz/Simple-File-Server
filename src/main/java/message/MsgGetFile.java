@@ -1,11 +1,11 @@
 package message;
 
-public class MsgSendFile extends Message{
+public class MsgGetFile extends Message{
     private String path;
     private String user;
 
-    public MsgSendFile(String path, String user){
-        super(Message.Type.SENDFILE);
+    public MsgGetFile(String path, String user){
+        super(Message.Type.GETFILE);
         this.path = path;
         this.user = user;
     }
