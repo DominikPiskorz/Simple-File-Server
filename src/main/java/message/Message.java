@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public class Message implements Serializable{
     public enum Type {
-        PING, REPLY, LOGIN, LIST, ADDFILE, CHUNK
+        PING, REPLY, LOGIN, LIST, ADDFILE, CHUNK, SENDFILE, ERROR
     }
 
     private Type type;

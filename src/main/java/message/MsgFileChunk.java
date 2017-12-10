@@ -5,6 +5,13 @@ public class MsgFileChunk extends Message {
     private int fileSize;
     private int start;
     private int end;
+    private int part;
+
+    public MsgFileChunk(byte[] data, int part) {
+        super(Type.CHUNK);
+        this.data = data;
+        this.part = part;
+    }
 
     public MsgFileChunk(byte[] data, int fileSize, int start, int end) {
         super(Type.CHUNK);

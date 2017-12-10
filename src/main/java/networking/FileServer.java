@@ -13,12 +13,17 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import message.Message;
 
+import java.io.RandomAccessFile;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.BufferedReader;
 import java.nio.file.Paths;
+import java.util.Arrays;
+
+import static sun.nio.ch.IOStatus.EOF;
 
 /**
  * Handles a server-side channel.
@@ -69,12 +74,25 @@ public class FileServer {
         } else {
             port = 8080;
         }
-        new FileServer(port, debug, usersPaths).run();
-        /*String path1 = FileSystems.getDefault().getPath("test").toString();
+        //new FileServer(port, debug, usersPaths).run();
+        //String path1 = FileSystems.getDefault().getPath("test").toString();
         //Path path = FileSystems.getDefault().getPath(Paths.get(path1),"uses.conf");
-        Path path = Paths.get(path1, "users.conf");
+        Path path = Paths.get("users.conf");
         System.out.println(path.toAbsolutePath().toString());
-        //BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
-        //System.out.println(reader.readLine());*/
+        RandomAccessFile file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
+        path = Paths.get("users2.conf");
+        RandomAccessFile file2 = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
+        System.out.println(file.length());
+        byte[] buff = new byte[4];
+        int n;
+        while((n = file.read(buff)) != -1) {
+            byte[] slice = Arrays.copyOfRange(buff, 0, n);
+            System.out.print(new String(slice, Charset.forName("UTF-8")));
+            file2.write(slice);
+        }
+        buff = "abc".getBytes();
+        file2.write(buff);
+        file.close();
+        file2.close();
     }
 }

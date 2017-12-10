@@ -3,10 +3,7 @@ package networking;
 import files.FileHandler;
 import io.netty.channel.*;
 import io.netty.util.ReferenceCountUtil;
-import message.Message;
-import message.MsgAddFile;
-import message.MsgPing;
-import message.MsgReply;
+import message.*;
 
 /**
  * Handles a server-side channel.
@@ -25,7 +22,7 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
     public void channelRead0(ChannelHandlerContext ctx, Message msg){
         System.out.println("Otrzymano:");
         System.out.println(msg.toString());
-        processMessage(msg);
+        processMessage(ctx, msg);
         //ctx.close();
 
     }
@@ -44,7 +41,7 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
         ctx.close();
     }
 
-    private Message processMessage(Message msg) {
+    private Message processMessage(ChannelHandlerContext ctx, Message msg) {
         switch (msg.getType()) {
             case PING:
                 MsgReply reply = new MsgReply();
@@ -52,12 +49,27 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
             case ADDFILE:
                 fileHandler.addFile((MsgAddFile) msg);
                 return null;
+            case SENDFILE:
+                sendFile(ctx, (MsgSendFile) msg);
             /*case CHUNK:
             case LIST:
             case REPLY:
             case LOGIN:*/
             default:
                 return null;
+        }
+    }
+
+    private void sendFile(ChannelHandlerContext ctx, MsgSendFile msg) {
+        byte[] buff;
+        //for(int n = 0; buff = fileHandler.filePart(msg.getPath(), n); n++);
+        int n = 0;
+        while(true){
+            buff = fileHandler.filePart(msg.getPath(), n);
+            if (buff == null)
+                break;
+            ctx.writeAndFlush(new MsgFileChunk(buff, n));
+            n++;
         }
     }
 }
