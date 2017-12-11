@@ -1,10 +1,13 @@
 package message;
 
+import java.util.Date;
+
 public class MsgAddFile extends Message {
     private String path;
     private String user;
     private long fileSize;
     private boolean verHis;
+    private Date lastedit;
 
     public MsgAddFile(String path, String user, long fileSize){
         super(Type.ADDFILE);

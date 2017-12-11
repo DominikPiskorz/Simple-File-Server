@@ -12,6 +12,7 @@ import java.util.concurrent.BlockingQueue;
 public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
     private BlockingQueue<Message> inQueue;
     private BlockingQueue<Message> outQueue;
+    private String user;
     private int partSize;
     private enum State {
         IDLE, DWN, UPL
@@ -20,9 +21,10 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
     private int fileParts;
 
 
-    public FileServerHandler(BlockingQueue<Message> inQueue, BlockingQueue<Message> outQueue, int partSize) {
+    public FileServerHandler(BlockingQueue<Message> inQueue, BlockingQueue<Message> outQueue, String user, int partSize) {
         this.inQueue = inQueue;
         this.outQueue = outQueue;
+        this.user = user;
         this.partSize = partSize;
     }
 
@@ -39,13 +41,6 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
     }
 
     @Override
-    public void channelActive(final ChannelHandlerContext ctx) {
-        System.out.println("Polaczenie");
-        ChannelFuture f = ctx.writeAndFlush(new MsgPing());
-        //f.addListener(ChannelFutureListener.CLOSE);
-    }
-
-    @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause){
         // Close the connection when an exception is raised.
         cause.printStackTrace();
@@ -59,18 +54,25 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
                     MsgReply reply = new MsgReply();
                     return reply;
                 case ADDFILE:
+                    if (!((MsgAddFile) msg).getUser().equals(user))
+                        return new MsgError("Wrong user.");
+
                     state = State.DWN;
                     fileParts = (int) (((MsgAddFile) msg).getFileSize() + partSize) / partSize;
                     inQueue.put(msg);
                     return null;
                 case CHUNK:
                     if (state != State.DWN)
-                        throw new IllegalStateException("Nie pobieram pliku.");
+                        //throw new IllegalStateException("Nie pobieram pliku.");
+                        return null;
                     inQueue.put(msg);
                     if (((MsgFileChunk) msg).getPart() == fileParts)
                         return outQueue.take();
                     return null;
                 case GETFILE:
+                    if (!((MsgGetFile) msg).getUser().equals(user))
+                        return new MsgError("Wrong user.");
+
                     state = State.UPL;
                     sendFile(ctx, (MsgGetFile) msg);
                     return new MsgOk();

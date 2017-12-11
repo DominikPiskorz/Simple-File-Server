@@ -7,7 +7,7 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LoggingHandler;
-import message.Message;
+import message.*;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -37,6 +37,6 @@ public class FileServerInitializer extends ChannelInitializer<SocketChannel> {
             ch.pipeline().addLast(new LoggingHandler());
         ch.pipeline().addLast(new ObjectEncoder(),
                 new ObjectDecoder(ClassResolvers.weakCachingConcurrentResolver(Message.class.getClassLoader())),
-                new FileServerHandler(inQueue, outQueue, partSize));
+                new LoginHandler(inQueue, outQueue, partSize));
     }
 }

@@ -14,6 +14,7 @@ import io.netty.handler.codec.serialization.ObjectEncoder;
 import message.Message;
 import message.MsgReply;
 
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,8 @@ import java.nio.file.Path;
 import java.io.BufferedReader;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
@@ -73,35 +76,29 @@ public class FileServer {
     }
 
     public static void main(String[] args) throws Exception {
-        int port;
-        boolean debug = true;
-        String usersPaths = FileSystems.getDefault().getPath("users").toString();
-        int queueSize = 256;
-        int partSize = (int) (0.5 * 1024 * 1024);
-        if (args.length > 0) {
-            port = Integer.parseInt(args[0]);
-        } else {
-            port = 8080;
-        }
+        Map<String, String> settings = readSettings();
+
+        int port = Integer.parseInt(settings.get("port"));
+        int queueSize = Integer.parseInt(settings.get("queueSize"));
+        int partSize = Integer.parseInt(settings.get("partSize"));
+        String usersPaths = settings.get("usersPaths");
+        boolean debug = Boolean.parseBoolean(settings.get("debug"));
+
         new FileServer(port, queueSize, partSize, usersPaths, debug).run();
-        //String path1 = FileSystems.getDefault().getPath("test").toString();
-        //Path path = FileSystems.getDefault().getPath(Paths.get(path1),"uses.conf");
-        /*Path path = Paths.get("users.conf");
-        System.out.println(path.toAbsolutePath().toString());
-        RandomAccessFile file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
-        path = Paths.get("users2.conf");
-        RandomAccessFile file2 = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
-        System.out.println(file.length());
-        byte[] buff = new byte[4];
-        int n;
-        while((n = file.read(buff)) != -1) {
-            byte[] slice = Arrays.copyOfRange(buff, 0, n);
-            System.out.print(new String(slice, Charset.forName("UTF-8")));
-            file2.write(slice);
+    }
+
+    private static Map<String, String> readSettings() {
+        Map<String, String> settings = new HashMap<String, String>();
+        try (BufferedReader br = Files.newBufferedReader(Paths.get("settings.conf"))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String parts[] = line.split(":");
+                settings.put(parts[0], parts[1]);
+            }
+            return settings;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
         }
-        buff = "abc".getBytes();
-        file2.write(buff);
-        file.close();
-        file2.close();*/
     }
 }
