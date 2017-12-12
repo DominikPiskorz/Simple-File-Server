@@ -2,18 +2,14 @@ package message;
 
 import java.io.Serializable;
 
-public class Message implements Serializable{
+public abstract class Message implements Serializable{
     public enum Type {
-        OK, PING, REPLY, LOGIN, LIST, ADDFILE, CHUNK, GETFILE, ERROR
+        OK, PING, REPLY, LOGIN, LIST, ADDFILE, CHUNK, GETFILE, ERROR, SETTINGS, EXIT, DELETE
     }
 
     private Type type;
 
-    public Message () {
-        this(Type.PING);
-    }
-
-    public Message (Type type) {
+    protected Message (Type type) {
         this.type = type;
     }
 

@@ -36,14 +36,13 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
         if ((reply = processMessage(ctx, msg)) != null)
             ctx.writeAndFlush(reply);
 
-        //ctx.close();
-
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause){
         // Close the connection when an exception is raised.
-        cause.printStackTrace();
+        //cause.printStackTrace();
+        System.out.println("Zakonczono polaczenie z " + user);
         ctx.close();
     }
 
@@ -76,6 +75,21 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
                     state = State.UPL;
                     sendFile(ctx, (MsgGetFile) msg);
                     return new MsgOk();
+                case LIST:
+                    if (!((MsgList) msg).getUser().equals(user))
+                        return new MsgError("Wrong user.");
+
+                    sendList(ctx, (MsgList) msg);
+                    return null;
+                case DELETE:
+                    if (!((MsgDelete) msg).getUser().equals(user))
+                        return new MsgError("Wrong user.");
+
+                    delete(ctx, (MsgDelete) msg);
+                    return null;
+                case EXIT:
+                    ctx.close();
+                    return null;
                 /*case CHUNK:
                 case LIST:
                 case REPLY:
@@ -90,6 +104,32 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
     }
 
     private void sendFile(ChannelHandlerContext ctx, MsgGetFile msg) {
+        try {
+            inQueue.put(msg);
+            Message out;
+            do {
+                out = outQueue.take();
+                ctx.writeAndFlush(out);
+            } while (out instanceof MsgFileChunk);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendList(ChannelHandlerContext ctx, MsgList msg) {
+        try {
+            inQueue.put(msg);
+            Message out;
+            do {
+                out = outQueue.take();
+                ctx.writeAndFlush(out);
+            } while (out instanceof MsgFileChunk);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void delete(ChannelHandlerContext ctx, MsgDelete msg) {
         try {
             inQueue.put(msg);
             Message out;

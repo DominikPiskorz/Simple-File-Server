@@ -2,11 +2,13 @@ package files;
 
 import message.*;
 
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
 public class FileHandler implements Runnable {
@@ -31,17 +33,25 @@ public class FileHandler implements Runnable {
                 switch (msg.getType()) {
                     case ADDFILE:
                         outQueue.put(add((MsgAddFile) msg));
-                        break;
+                        continue;
                     case GETFILE:
                         outQueue.put(send((MsgGetFile) msg));
+                        continue;
+                    case LIST:
+                        outQueue.put(sendList(((MsgList) msg).getUser()));
+                        continue;
+                    case DELETE:
+                        outQueue.put(deleteFile(((MsgDelete) msg).getPath(), ((MsgDelete) msg).getUser()));
+                    case EXIT:
                         break;
                     /*case CHUNK:
                     case LIST:
                     case REPLY:
                     case LOGIN:*/
                     default:
-                        break;
+                        continue;
                 }
+                break;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -52,10 +62,18 @@ public class FileHandler implements Runnable {
         Path path = Paths.get(usersPath, msg.getUser(), msg.getPath());
         System.out.println("Dodaje plik: " + path.toString());
         System.out.println(path.toAbsolutePath().toString());
-        int parts = (int) (msg.getFileSize() + partSize) / partSize;
+        registerFile(msg.getPath(), msg.getUser(), msg.isVerHis());
+        int parts = (int) (msg.getFileSize() + partSize - 1) / partSize;
         System.out.println(msg.getFileSize() + " " + partSize + " " + parts);
         RandomAccessFile file = null;
         try {
+            // Utworz folder, jesli nie istnieje
+            File targetFile = new File(path.toAbsolutePath().toString());
+            File parent = targetFile.getParentFile();
+            if (!parent.exists() && !parent.mkdirs()) {
+                throw new IllegalStateException("Couldn't create dir: " + parent);
+            }
+
             file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
             for (int currPart = 0; currPart < parts; currPart++) {
                 MsgFileChunk chunk = (MsgFileChunk) inQueue.take();
@@ -83,14 +101,14 @@ public class FileHandler implements Runnable {
         }
     }
 
-    public Message send(MsgGetFile msg) {
+    private Message send(MsgGetFile msg) {
         Path path = Paths.get(usersPath, msg.getUser(), msg.getPath());
         System.out.println("Wysylam plik: " + path.toString());
         System.out.println(path.toAbsolutePath().toString());
         RandomAccessFile file = null;
         try {
             file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
-            int parts = (int) (file.length() + partSize) / partSize;
+            int parts = (int) (file.length() + partSize - 1) / partSize;
             for (int currPart = 0; currPart < parts; currPart++) {
                 byte[] data = getPart(file, currPart);
                 outQueue.put(new MsgFileChunk(data, currPart));
@@ -110,7 +128,7 @@ public class FileHandler implements Runnable {
         }
     }
 
-    public byte[] getPart(RandomAccessFile file, int part) {
+    private byte[] getPart(RandomAccessFile file, int part) {
         try {
             if (part * partSize >= file.length()) {
                 throw new IllegalArgumentException("Argument part jest zbyt duzy.");
@@ -126,4 +144,113 @@ public class FileHandler implements Runnable {
         }
     }
 
+    private void registerFile(String path, String user, boolean hisVer) {
+        Path listPath = Paths.get(usersPath,user+".list");
+        // Utworz folder, jesli nie istnieje
+        File fileList = new File(listPath.toAbsolutePath().toString());
+        File parent = fileList.getParentFile();
+        if (!parent.exists() && !parent.mkdirs()) {
+            throw new IllegalStateException("Couldn't create dir: " + parent);
+        }
+        if (!fileList.exists()) {
+            try {
+                Writer output = new BufferedWriter(new FileWriter(listPath.toString(), true));
+                output.append(path + ":" + (hisVer ? 1 : 0 + System.lineSeparator()));
+                output.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        try (BufferedReader br = Files.newBufferedReader(listPath)) {
+            String line;
+            String input = "";
+            boolean replace = false;
+            boolean found = false;
+            while ((line = br.readLine()) != null) {
+                input += line + System.lineSeparator();
+                String parts[] = line.split(":");
+                if (parts[0].equals(path)) {
+                    found = true;
+                    if (hisVer == Boolean.parseBoolean(parts[1]))
+                        break;
+                    else {
+                        replace = true;
+                        input = input.replace(line, parts[0] + ":" + (hisVer ? 1 : 0));
+                    }
+                }
+            }
+
+            if (replace){
+                FileOutputStream os = new FileOutputStream(listPath.toString());
+                os.write(input.getBytes());
+                os.close();
+            }
+            else if (!found) {
+                Writer output = new BufferedWriter(new FileWriter(listPath.toString(), true));
+                output.append(path + ":" + (hisVer ? 1 : 0) + System.lineSeparator());
+                output.close();
+            }
+            br.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Message sendList(String user) {
+        Path path = Paths.get(usersPath,user + ".list");
+        System.out.println("Wysylam liste: " + path.toString());
+        RandomAccessFile file = null;
+        try {
+            file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
+            int parts = (int) (file.length() + partSize - 1) / partSize;
+            for (int currPart = 0; currPart < parts; currPart++) {
+                byte[] data = getPart(file, currPart);
+                outQueue.put(new MsgFileChunk(data, currPart));
+            }
+            return new MsgOk();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new MsgError(e.toString());
+        } finally {
+            if (file != null) {
+                try {
+                    file.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private Message deleteFile(String strPath, String user) {
+        Path path = Paths.get(usersPath, user, strPath);
+        try {
+            Files.delete(path);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        Path listPath = Paths.get(usersPath, user + ".list");
+        try (BufferedReader br = Files.newBufferedReader(listPath)) {
+            String line;
+            String input = "";
+            while ((line = br.readLine()) != null) {
+                input += line + System.lineSeparator();
+            }
+
+            input = input.replace(path.toString() + ":1" + System.lineSeparator(), "");
+            input = input.replace(path.toString() + ":0" + System.lineSeparator(), "");
+
+            FileOutputStream os = new FileOutputStream(listPath.toString());
+            os.write(input.getBytes());
+            os.close();
+            return new MsgOk();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new MsgError(e.toString());
+        }
+
+    }
 }

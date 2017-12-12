@@ -56,14 +56,14 @@ public class LoginHandler extends SimpleChannelInboundHandler<Message> {
     @Override
     public void channelActive(final ChannelHandlerContext ctx) {
         System.out.println("Polaczenie");
-        ChannelFuture f = ctx.writeAndFlush(new MsgPing());
+        ChannelFuture f = ctx.writeAndFlush(new MsgSettings(partSize));
         //f.addListener(ChannelFutureListener.CLOSE);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause){
         // Close the connection when an exception is raised.
-        cause.printStackTrace();
+        System.out.println("Zakonczono polaczenie");
         ctx.close();
     }
 
