@@ -11,6 +11,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+
 public class FileHandler implements Runnable {
     private BlockingQueue<Message> inQueue;
     private BlockingQueue<Message> outQueue;
@@ -42,6 +44,7 @@ public class FileHandler implements Runnable {
                         continue;
                     case DELETE:
                         outQueue.put(deleteFile(((MsgDelete) msg).getPath(), ((MsgDelete) msg).getUser()));
+                        continue;
                     case EXIT:
                         break;
                     /*case CHUNK:
@@ -225,6 +228,7 @@ public class FileHandler implements Runnable {
     }
 
     private Message deleteFile(String strPath, String user) {
+        System.out.println("Usuwam " + strPath);
         Path path = Paths.get(usersPath, user, strPath);
         try {
             Files.delete(path);
@@ -233,19 +237,25 @@ public class FileHandler implements Runnable {
         }
 
         Path listPath = Paths.get(usersPath, user + ".list");
-        try (BufferedReader br = Files.newBufferedReader(listPath)) {
+        Path tempPath = Paths.get(usersPath, user + ".list.temp");
+        try {
+            BufferedReader br = Files.newBufferedReader(listPath);
+            BufferedWriter bw = Files.newBufferedWriter(tempPath);
             String line;
-            String input = "";
             while ((line = br.readLine()) != null) {
-                input += line + System.lineSeparator();
+                String parts[] = line.split(":");
+                System.out.println(parts[0] + " " + strPath);
+                if (parts[0].equals(strPath)) {
+                    System.out.println("Wykryto");
+                    continue;
+                }
+                bw.write(line + System.lineSeparator());
             }
+            bw.close();
+            br.close();
+            Files.move(tempPath, listPath, REPLACE_EXISTING);
 
-            input = input.replace(path.toString() + ":1" + System.lineSeparator(), "");
-            input = input.replace(path.toString() + ":0" + System.lineSeparator(), "");
-
-            FileOutputStream os = new FileOutputStream(listPath.toString());
-            os.write(input.getBytes());
-            os.close();
+            System.out.println("Usunieto");
             return new MsgOk();
         } catch (Exception e) {
             e.printStackTrace();
