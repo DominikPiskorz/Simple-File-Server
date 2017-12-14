@@ -35,7 +35,7 @@ public class LoginHandler extends SimpleChannelInboundHandler<Message> {
         try (BufferedReader br = Files.newBufferedReader(Paths.get("users.conf"))) {
             String line;
             while ((line = br.readLine()) != null) {
-                String[] parts = line.split(":");
+                String[] parts = line.split(";");
                 if (msglog.getUsername().equals(parts[0]) && msglog.getPassword().equals(parts[1])) {
                     System.out.println("Zalogowano: " + msglog.getUsername());
                     ctx.writeAndFlush(new MsgOk());

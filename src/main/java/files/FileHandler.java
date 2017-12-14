@@ -63,9 +63,9 @@ public class FileHandler implements Runnable {
 
     private Message add(MsgAddFile msg) {
         Path path = Paths.get(usersPath, msg.getUser(), msg.getPath());
+        Path tempPath = Paths.get(usersPath, msg.getUser(), msg.getPath() + ".temp");
         System.out.println("Dodaje plik: " + path.toString());
         System.out.println(path.toAbsolutePath().toString());
-        registerFile(msg.getPath(), msg.getUser(), msg.isVerHis());
         int parts = (int) (msg.getFileSize() + partSize - 1) / partSize;
         System.out.println(msg.getFileSize() + " " + partSize + " " + parts);
         RandomAccessFile file = null;
@@ -77,7 +77,7 @@ public class FileHandler implements Runnable {
                 throw new IllegalStateException("Couldn't create dir: " + parent);
             }
 
-            file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
+            file = new RandomAccessFile(tempPath.toAbsolutePath().toString(), "rw");
             for (int currPart = 0; currPart < parts; currPart++) {
                 MsgFileChunk chunk = (MsgFileChunk) inQueue.take();
                 System.out.println("Dopisuje:" + msg.toString()  +
@@ -86,6 +86,8 @@ public class FileHandler implements Runnable {
                 file.seek(currPart * partSize);
                 file.write(chunk.getData());
             }
+            Files.move(tempPath, path, REPLACE_EXISTING);
+            registerFile(msg.getPath(), msg.getUser(), msg.isVerHis());
             return new MsgOk();
         } catch (ClassCastException e) {
             e.printStackTrace();
@@ -158,7 +160,7 @@ public class FileHandler implements Runnable {
         if (!fileList.exists()) {
             try {
                 Writer output = new BufferedWriter(new FileWriter(listPath.toString(), true));
-                output.append(path + ":" + (hisVer ? 1 : 0 + System.lineSeparator()));
+                output.append(path + ";" + (hisVer ? 1 : 0 + System.lineSeparator()));
                 output.close();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -173,14 +175,14 @@ public class FileHandler implements Runnable {
             boolean found = false;
             while ((line = br.readLine()) != null) {
                 input += line + System.lineSeparator();
-                String parts[] = line.split(":");
+                String parts[] = line.split(";");
                 if (parts[0].equals(path)) {
                     found = true;
                     if (hisVer == Boolean.parseBoolean(parts[1]))
                         break;
                     else {
                         replace = true;
-                        input = input.replace(line, parts[0] + ":" + (hisVer ? 1 : 0));
+                        input = input.replace(line, parts[0] + ";" + (hisVer ? 1 : 0));
                     }
                 }
             }
@@ -192,7 +194,7 @@ public class FileHandler implements Runnable {
             }
             else if (!found) {
                 Writer output = new BufferedWriter(new FileWriter(listPath.toString(), true));
-                output.append(path + ":" + (hisVer ? 1 : 0) + System.lineSeparator());
+                output.append(path + ";" + (hisVer ? 1 : 0) + System.lineSeparator());
                 output.close();
             }
             br.close();
@@ -243,7 +245,7 @@ public class FileHandler implements Runnable {
             BufferedWriter bw = Files.newBufferedWriter(tempPath);
             String line;
             while ((line = br.readLine()) != null) {
-                String parts[] = line.split(":");
+                String parts[] = line.split(";");
                 System.out.println(parts[0] + " " + strPath);
                 if (parts[0].equals(strPath)) {
                     System.out.println("Wykryto");

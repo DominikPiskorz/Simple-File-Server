@@ -92,9 +92,10 @@ public class FileServer {
         try (BufferedReader br = Files.newBufferedReader(Paths.get("settings.conf"))) {
             String line;
             while ((line = br.readLine()) != null) {
-                String parts[] = line.split(":");
+                String parts[] = line.split(";");
                 settings.put(parts[0], parts[1]);
             }
+            br.close();
             return settings;
         } catch (IOException e) {
             e.printStackTrace();
