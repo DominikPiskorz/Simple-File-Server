@@ -75,6 +75,9 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
                     state = State.UPL;
                     sendFile(ctx, (MsgGetFile) msg);
                     return new MsgOk();
+                case GETFILEVER:
+                    sendFileVer(ctx, (MsgGetFileVer) msg);
+                    return null;
                 case LIST:
                     if (!((MsgList) msg).getUser().equals(user))
                         return new MsgError("Wrong user.");
@@ -90,10 +93,6 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
                 case EXIT:
                     ctx.close();
                     return null;
-                /*case CHUNK:
-                case LIST:
-                case REPLY:
-                case LOGIN:*/
                 default:
                     return null;
             }
@@ -111,6 +110,16 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
                 out = outQueue.take();
                 ctx.writeAndFlush(out);
             } while (out instanceof MsgFileChunk);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendFileVer(ChannelHandlerContext ctx, MsgGetFileVer msg) {
+        try {
+            inQueue.put(msg);
+            Message out = outQueue.take();
+            ctx.writeAndFlush(out);
         } catch (Exception e) {
             e.printStackTrace();
         }

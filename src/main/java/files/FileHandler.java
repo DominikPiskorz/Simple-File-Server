@@ -3,12 +3,8 @@ package files;
 import message.*;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.file.*;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
@@ -39,6 +35,9 @@ public class FileHandler implements Runnable {
                     case GETFILE:
                         outQueue.put(send((MsgGetFile) msg));
                         continue;
+                    case GETFILEVER:
+                        outQueue.put(fileVer((MsgGetFileVer) msg));
+                        continue;
                     case LIST:
                         outQueue.put(sendList(((MsgList) msg).getUser()));
                         continue;
@@ -65,7 +64,7 @@ public class FileHandler implements Runnable {
         Path path = Paths.get(usersPath, msg.getUser(), msg.getPath());
         Path tempPath = Paths.get(usersPath, msg.getUser(), msg.getPath() + ".temp");
         System.out.println("Dodaje plik: " + path.toString());
-        System.out.println(path.toAbsolutePath().toString());
+        System.out.println(path.toAbsolutePath().toString() + msg.getDateString());
         int parts = (int) (msg.getFileSize() + partSize - 1) / partSize;
         System.out.println(msg.getFileSize() + " " + partSize + " " + parts);
         RandomAccessFile file = null;
@@ -77,7 +76,7 @@ public class FileHandler implements Runnable {
                 throw new IllegalStateException("Couldn't create dir: " + parent);
             }
 
-            file = new RandomAccessFile(tempPath.toAbsolutePath().toString(), "rw");
+            file = new RandomAccessFile(tempPath.toAbsolutePath().toString() + msg.getDateString(), "rw");
             for (int currPart = 0; currPart < parts; currPart++) {
                 MsgFileChunk chunk = (MsgFileChunk) inQueue.take();
                 System.out.println("Dopisuje:" + msg.toString()  +
@@ -131,6 +130,40 @@ public class FileHandler implements Runnable {
                 }
             }
         }
+    }
+
+    private MsgFileVer fileVer(MsgGetFileVer msg) {
+        String msgPath = msg.getPath();
+        String filename = msg.getPath();
+        if (msgPath.contains("/")) {
+            String[] parts = msgPath.split("/");
+            filename = parts[parts.length - 1];
+            msgPath = "";
+            for (int i = 0; i < parts.length - 1; i++)
+                msgPath = msgPath + (i > 0 ? "/" : "") + parts[i];
+        } else if (msgPath.contains("\\")) {
+            String[] parts = msgPath.split("\\");
+            filename = parts[parts.length - 1];
+            msgPath = "";
+            for (int i = 0; i < parts.length - 1; i++)
+                msgPath = msgPath + (i > 0 ? "\\" : "") + parts[i];
+        } else
+            msgPath = "";
+
+        Path path = Paths.get(usersPath, msg.getUser(), msgPath);
+        PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + filename + "*");
+        List<String> list = new ArrayList<String>();
+        File dir = new File(path.toString());
+        File[] directoryListing = dir.listFiles();
+        for (File child : directoryListing) {
+            Path childPath = child.toPath();
+            if (matcher.matches(childPath))
+                list.add(childPath.toString().substring(childPath.toString().length() - 19));
+        }
+        System.out.println(list);
+        String[] dates = new String[list.size()];
+        return new MsgFileVer(dates);
+
     }
 
     private byte[] getPart(RandomAccessFile file, int part) {
