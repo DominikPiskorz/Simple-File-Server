@@ -61,8 +61,8 @@ public class FileHandler implements Runnable {
     }
 
     private Message add(MsgAddFile msg) {
-        Path path = Paths.get(usersPath, msg.getUser(), msg.getPath());
-        Path tempPath = Paths.get(usersPath, msg.getUser(), msg.getPath() + ".temp");
+        Path path = Paths.get(usersPath, msg.getUser(), msg.getPath() + msg.getDateString());
+        Path tempPath = Paths.get(usersPath, msg.getUser(), msg.getPath() + msg.getDateString() + ".temp");
         System.out.println("Dodaje plik: " + path.toString());
         System.out.println(path.toAbsolutePath().toString() + msg.getDateString());
         int parts = (int) (msg.getFileSize() + partSize - 1) / partSize;
@@ -76,7 +76,7 @@ public class FileHandler implements Runnable {
                 throw new IllegalStateException("Couldn't create dir: " + parent);
             }
 
-            file = new RandomAccessFile(tempPath.toAbsolutePath().toString() + msg.getDateString(), "rw");
+            file = new RandomAccessFile(tempPath.toAbsolutePath().toString(), "rw");
             for (int currPart = 0; currPart < parts; currPart++) {
                 MsgFileChunk chunk = (MsgFileChunk) inQueue.take();
                 System.out.println("Dopisuje:" + msg.toString()  +
@@ -85,6 +85,7 @@ public class FileHandler implements Runnable {
                 file.seek(currPart * partSize);
                 file.write(chunk.getData());
             }
+            file.close();
             Files.move(tempPath, path, REPLACE_EXISTING);
             registerFile(msg.getPath(), msg.getUser(), msg.isVerHis());
             return new MsgOk();
@@ -94,14 +95,14 @@ public class FileHandler implements Runnable {
         } catch (Exception e){
             e.printStackTrace();
             return new MsgError(e.toString());
-        } finally {
+        /*} finally {
             if (file != null) {
                 try {
                     file.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
+            }*/
         }
     }
 
@@ -133,6 +134,10 @@ public class FileHandler implements Runnable {
     }
 
     private MsgFileVer fileVer(MsgGetFileVer msg) {
+        /*if (true) {
+            String[]r = {"21", "22"};
+            return new MsgFileVer(r);
+        }*/
         String msgPath = msg.getPath();
         String filename = msg.getPath();
         if (msgPath.contains("/")) {
@@ -142,7 +147,7 @@ public class FileHandler implements Runnable {
             for (int i = 0; i < parts.length - 1; i++)
                 msgPath = msgPath + (i > 0 ? "/" : "") + parts[i];
         } else if (msgPath.contains("\\")) {
-            String[] parts = msgPath.split("\\");
+            String[] parts = msgPath.split("\\\\");
             filename = parts[parts.length - 1];
             msgPath = "";
             for (int i = 0; i < parts.length - 1; i++)
@@ -151,17 +156,25 @@ public class FileHandler implements Runnable {
             msgPath = "";
 
         Path path = Paths.get(usersPath, msg.getUser(), msgPath);
+        Path filenamePath = Paths.get(usersPath, msg.getUser(), msgPath, filename);
         PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + filename + "*");
         List<String> list = new ArrayList<String>();
         File dir = new File(path.toString());
         File[] directoryListing = dir.listFiles();
+        if (directoryListing == null)
+            return new MsgFileVer("");
         for (File child : directoryListing) {
             Path childPath = child.toPath();
-            if (matcher.matches(childPath))
-                list.add(childPath.toString().substring(childPath.toString().length() - 19));
+            if (matcher.matches(childPath.getFileName())) {
+                String substring = childPath.toString().substring(childPath.toString().length() - 19);
+                substring = substring.replace("-", ":");
+                substring = substring.replace("_", " ");
+                substring = substring.replace(".", "/");
+                list.add(substring);
+            }
         }
-        System.out.println(list);
-        String[] dates = new String[list.size()];
+        System.out.println("Lista: " + list);
+        String dates = String.join(";",list);
         return new MsgFileVer(dates);
 
     }

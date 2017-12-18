@@ -48,7 +48,7 @@ public class MsgAddFile extends Message {
     }
 
     public String getDateString() {
-        DateFormat df = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss"); //19 characters
+        DateFormat df = new SimpleDateFormat("dd.MM.yyyy_HH-mm-ss"); //19 characters
         return df.format(date);
     }
 

@@ -33,9 +33,10 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
         System.out.println("Otrzymano:");
         System.out.println(msg.toString());
         Message reply;
-        if ((reply = processMessage(ctx, msg)) != null)
+        if ((reply = processMessage(ctx, msg)) != null) {
+            System.out.println("Wysylam: " + reply.toString());
             ctx.writeAndFlush(reply);
-
+        }
     }
 
     @Override
@@ -57,16 +58,21 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
                         return new MsgError("Wrong user.");
 
                     state = State.DWN;
-                    fileParts = (int) (((MsgAddFile) msg).getFileSize() + partSize) / partSize;
+                    fileParts = (int) (((MsgAddFile) msg).getFileSize() + partSize - 1) / partSize;
                     inQueue.put(msg);
+                    if (fileParts == 0)
+                        return outQueue.take();
                     return null;
                 case CHUNK:
                     if (state != State.DWN)
                         //throw new IllegalStateException("Nie pobieram pliku.");
                         return null;
                     inQueue.put(msg);
-                    if (((MsgFileChunk) msg).getPart() == fileParts)
+                    System.out.println("Part: " + ((MsgFileChunk) msg).getPart() + " " + fileParts);
+                    if (((MsgFileChunk) msg).getPart() == fileParts) {
+                        System.out.println("Odsylam OK");
                         return outQueue.take();
+                    }
                     return null;
                 case GETFILE:
                     if (!((MsgGetFile) msg).getUser().equals(user))
