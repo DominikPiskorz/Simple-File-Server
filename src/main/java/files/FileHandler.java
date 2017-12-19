@@ -107,7 +107,7 @@ public class FileHandler implements Runnable {
     }
 
     private Message send(MsgGetFile msg) {
-        Path path = Paths.get(usersPath, msg.getUser(), msg.getPath());
+        Path path = Paths.get(usersPath, msg.getUser(), msg.getPathDate());
         System.out.println("Wysylam plik: " + path.toString());
         System.out.println(path.toAbsolutePath().toString());
         RandomAccessFile file = null;
