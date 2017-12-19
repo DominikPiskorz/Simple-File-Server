@@ -71,6 +71,10 @@ public class FileHandler implements Runnable {
         try {
             // Utworz folder, jesli nie istnieje
             File targetFile = new File(path.toAbsolutePath().toString());
+            if (targetFile.exists()) {
+                Files.delete(targetFile.toPath());
+            }
+
             File parent = targetFile.getParentFile();
             if (!parent.exists() && !parent.mkdirs()) {
                 throw new IllegalStateException("Couldn't create dir: " + parent);
