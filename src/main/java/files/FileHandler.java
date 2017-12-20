@@ -9,6 +9,9 @@ import java.util.concurrent.BlockingQueue;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
+/**
+ * Class for file-based operations - saving, splitting into messages, deleting.
+ */
 public class FileHandler implements Runnable {
     private BlockingQueue<Message> inQueue;
     private BlockingQueue<Message> outQueue;
@@ -22,12 +25,14 @@ public class FileHandler implements Runnable {
         this.partSize = partSize;
     }
 
+    /**
+     * Main loop - wait for command then execute it, pass the result to ServerHandler.
+     */
     public void run() {
         try {
             while (true) {
-                System.out.println("Czekam");
+                System.out.println("FileHandler Waiting.");
                 Message msg = inQueue.take();
-                //System.out.println(msg.toString());
                 switch (msg.getType()) {
                     case ADDFILE:
                         outQueue.put(add((MsgAddFile) msg));
@@ -46,10 +51,6 @@ public class FileHandler implements Runnable {
                         continue;
                     case EXIT:
                         break;
-                    /*case CHUNK:
-                    case LIST:
-                    case REPLY:
-                    case LOGIN:*/
                     default:
                         continue;
                 }
@@ -60,6 +61,12 @@ public class FileHandler implements Runnable {
         }
     }
 
+    /**
+     * Download and save new file from client. Add file to list of files if it isn't there.
+     * Data is saved in temp file until download is complete, so in case of crash
+     * the unfinished file isn't created.
+     * @return OK message if succesful, Error message otherwise
+     */
     private Message add(MsgAddFile msg) {
         Path path = Paths.get(usersPath, msg.getUser(), msg.getPath() + msg.getDateString());
         Path tempPath = Paths.get(usersPath, msg.getUser(), msg.getPath() + msg.getDateString() + ".temp");
@@ -99,20 +106,16 @@ public class FileHandler implements Runnable {
         } catch (Exception e){
             e.printStackTrace();
             return new MsgError(e.toString());
-        /*} finally {
-            if (file != null) {
-                try {
-                    file.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }*/
         }
     }
 
+    /**
+     * Send file to client. Split file into chunks and pass them to ServerHandler.
+     * @return OK message if succesful, Error message otherwise
+     */
     private Message send(MsgGetFile msg) {
         Path path = Paths.get(usersPath, msg.getUser(), msg.getPathDate());
-        System.out.println("Wysylam plik: " + path.toString());
+        System.out.println("Sending file: " + path.toString());
         System.out.println(path.toAbsolutePath().toString());
         RandomAccessFile file = null;
         try {
@@ -137,8 +140,15 @@ public class FileHandler implements Runnable {
         }
     }
 
+    /**
+     * Check what versions of file are saved on server.
+     * Version number is the same as the edit date.
+     * @return Message containing string with all file versions (dates). String is empty
+     * if file doesn't exist.
+     */
     private MsgFileVer fileVer(MsgGetFileVer msg) {
         String msgPath = msg.getPath();
+        // Swap "\" to "/" to avoid Unix/Windows file paths compatibility issues
         msgPath = msgPath.replace("\\", "/");
         String filename = msg.getPath();
         if (msgPath.contains("/")) {
@@ -150,6 +160,7 @@ public class FileHandler implements Runnable {
         } else
             msgPath = "";
 
+        // Go through saved files and check if any of them is a version we're looking for
         Path path = Paths.get(usersPath, msg.getUser(), msgPath);
         Path filenamePath = Paths.get(usersPath, msg.getUser(), msgPath, filename);
         PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + filename + "*");
@@ -168,12 +179,16 @@ public class FileHandler implements Runnable {
                 list.add(substring);
             }
         }
-        //System.out.println("Lista: " + list);
         String dates = String.join(";",list);
         return new MsgFileVer(dates);
 
     }
 
+    /**
+     * Get a part of a file.
+     * @param part Index of part
+     * @return Data as a array of bytes
+     */
     private byte[] getPart(RandomAccessFile file, int part) {
         try {
             if (part * partSize >= file.length()) {
@@ -190,10 +205,15 @@ public class FileHandler implements Runnable {
         }
     }
 
+
+    /**
+     * Add file to user's list of files if it's not there already.
+     */
     private void registerFile(String path, String user, boolean hisVer) {
         path = path.replace("\\", "/");
         Path listPath = Paths.get(usersPath,user+".list");
-        // Utworz folder, jesli nie istnieje
+
+        // Create folder if needed
         File fileList = new File(listPath.toAbsolutePath().toString());
         File parent = fileList.getParentFile();
         if (!parent.exists() && !parent.mkdirs()) {
@@ -245,6 +265,11 @@ public class FileHandler implements Runnable {
         }
     }
 
+    /**
+     * Send user's list of files.
+     * List is sent the same way as ordinary files are.
+     * @return OK message if succesful, Error message otherwise
+     */
     private Message sendList(String user) {
         Path path = Paths.get(usersPath,user + ".list");
         System.out.println("Wysylam liste: " + path.toString());
@@ -271,6 +296,10 @@ public class FileHandler implements Runnable {
         }
     }
 
+    /**
+     * Delete file and delete entry in user's file list if it's the only version.
+     * @return OK message if succesful, Error message otherwise.
+     */
     private Message deleteFile(String strPath, String date, String user) {
         strPath = strPath.substring(1);
         System.out.println("Usuwam " + strPath);
@@ -281,10 +310,12 @@ public class FileHandler implements Runnable {
             e.printStackTrace();
         }
 
+        // Check if any other versions remain.
         MsgFileVer versions = fileVer(new MsgGetFileVer(strPath, user));
         if (!versions.getDates().equals(""))
             return new MsgOk();
 
+        //Last version was deleted so delete entry in user's file list.
         Path listPath = Paths.get(usersPath, user + ".list");
         Path tempPath = Paths.get(usersPath, user + ".list.temp");
         try {

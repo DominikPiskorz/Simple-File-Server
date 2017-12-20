@@ -1,6 +1,6 @@
 <component name="ArtifactManager">
   <artifact type="jar" name="Simple File Server:jar">
-    <output-path>$PROJECT_DIR$/out/artifacts/Simple_File_Server_jar</output-path>
+    <output-path>$PROJECT_DIR$/</output-path>
     <root id="archive" name="Simple File Server.jar">
       <element id="module-output" name="Simple File Server" />
       <element id="extracted-dir" path="$MAVEN_REPOSITORY$/io/netty/netty-all/4.1.17.Final/netty-all-4.1.17.Final.jar" path-in-jar="/" />

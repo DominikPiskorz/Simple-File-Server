@@ -8,7 +8,6 @@ import java.util.concurrent.BlockingQueue;
 /**
  * Handles a server-side channel.
  */
-//public class FileServerHandler extends ChannelInboundHandlerAdapter{
 public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
     private BlockingQueue<Message> inQueue;
     private BlockingQueue<Message> outQueue;
@@ -28,13 +27,16 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
         this.partSize = partSize;
     }
 
+    /**
+     * Process message from client
+     */
     @Override
     public void channelRead0(ChannelHandlerContext ctx, Message msg){
-        System.out.println("Otrzymano:");
+        System.out.println("Received:");
         System.out.println(msg.toString());
         Message reply;
         if ((reply = processMessage(ctx, msg)) != null) {
-            System.out.println("Wysylam: " + reply.toString());
+            System.out.println("Sending: " + reply.toString());
             ctx.writeAndFlush(reply);
         }
     }
@@ -42,11 +44,14 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause){
         // Close the connection when an exception is raised.
-        //cause.printStackTrace();
-        System.out.println("Zakonczono polaczenie z " + user);
+        System.out.println("Disconnected from user " + user);
         ctx.close();
     }
 
+    /**
+     * Check message type and execute command.
+     * @return Message to send back to client
+     */
     private Message processMessage(ChannelHandlerContext ctx, Message msg) {
         try {
             switch (msg.getType()) {
@@ -70,7 +75,7 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
                     inQueue.put(msg);
                     System.out.println("Part: " + ((MsgFileChunk) msg).getPart() + " " + fileParts);
                     if (((MsgFileChunk) msg).getPart() == fileParts - 1) {
-                        System.out.println("Odsylam OK");
+                        System.out.println("Upload complete.");
                         return outQueue.take();
                     }
                     return null;
@@ -108,6 +113,9 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
         }
     }
 
+    /**
+     * Pass message to FileHandler.
+     */
     private void sendFile(ChannelHandlerContext ctx, MsgGetFile msg) {
         try {
             inQueue.put(msg);
@@ -121,6 +129,10 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
         }
     }
 
+
+    /**
+     * Pass message to FileHandler.
+     */
     private void sendFileVer(ChannelHandlerContext ctx, MsgGetFileVer msg) {
         try {
             inQueue.put(msg);
@@ -131,6 +143,10 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
         }
     }
 
+
+    /**
+     * Pass message to FileHandler.
+     */
     private void sendList(ChannelHandlerContext ctx, MsgList msg) {
         try {
             inQueue.put(msg);
@@ -144,6 +160,10 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
         }
     }
 
+
+    /**
+     * Pass message to FileHandler.
+     */
     private void delete(ChannelHandlerContext ctx, MsgDelete msg) {
         try {
             inQueue.put(msg);

@@ -33,10 +33,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 
-import static sun.nio.ch.IOStatus.EOF;
 
 /**
- * Handles a server-side channel.
+ * Main class initiating threads and loading settings.
  */
 public class FileServer {
 
@@ -55,6 +54,7 @@ public class FileServer {
     }
 
     public void run() throws Exception {
+        // Netty server initiation. Start a group of threads for connections
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
@@ -78,7 +78,9 @@ public class FileServer {
         }
     }
 
+    // Main function
     public static void main(String[] args) throws Exception {
+        // Read settings from file
         Map<String, String> settings = readSettings();
 
         int port = Integer.parseInt(settings.get("port"));
@@ -87,9 +89,14 @@ public class FileServer {
         String usersPaths = settings.get("usersPaths");
         boolean debug = Boolean.parseBoolean(settings.get("debug"));
 
+        // Start server
         new FileServer(port, queueSize, partSize, usersPaths, debug).run();
     }
 
+    /**
+     * Read settings from settings.conf
+     * @return A map with settings and their values
+     */
     private static Map<String, String> readSettings() {
         Map<String, String> settings = new HashMap<String, String>();
         try (BufferedReader br = Files.newBufferedReader(Paths.get("settings.conf"))) {

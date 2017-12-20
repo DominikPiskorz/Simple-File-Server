@@ -12,6 +12,10 @@ import message.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+
+/**
+ * Initializer for Netty network handlers
+ */
 public class FileServerInitializer extends ChannelInitializer<SocketChannel> {
     private boolean debug;
     private String usersPath;
@@ -25,6 +29,10 @@ public class FileServerInitializer extends ChannelInitializer<SocketChannel> {
         this.debug = debug;
     }
 
+    /**
+     * Add handlers - object decoders and login handler. After succesful login
+     * the login handler will be swapped to regular server handler.
+     */
     @Override
     public void initChannel(SocketChannel ch) throws Exception {
         BlockingQueue<Message> inQueue = new ArrayBlockingQueue<Message>(queueSize);
