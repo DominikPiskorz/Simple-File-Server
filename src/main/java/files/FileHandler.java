@@ -70,10 +70,9 @@ public class FileHandler implements Runnable {
     private Message add(MsgAddFile msg) {
         Path path = Paths.get(usersPath, msg.getUser(), msg.getPath() + msg.getDateString());
         Path tempPath = Paths.get(usersPath, msg.getUser(), msg.getPath() + msg.getDateString() + ".temp");
-        System.out.println("Dodaje plik: " + path.toString());
+        System.out.println("Adding file: " + path.toString());
         System.out.println(path.toAbsolutePath().toString() + msg.getDateString());
         int parts = (int) (msg.getFileSize() + partSize - 1) / partSize;
-        System.out.println(msg.getFileSize() + " " + partSize + " " + parts);
         RandomAccessFile file = null;
         try {
             // Utworz folder, jesli nie istnieje
@@ -90,9 +89,6 @@ public class FileHandler implements Runnable {
             file = new RandomAccessFile(tempPath.toAbsolutePath().toString(), "rw");
             for (int currPart = 0; currPart < parts; currPart++) {
                 MsgFileChunk chunk = (MsgFileChunk) inQueue.take();
-                System.out.println("Dopisuje:" + msg.toString()  +
-                        " part " + currPart +"/"+ parts + " pos: " + (currPart * partSize));
-                //append(file, chunk.getData(), currPart);
                 file.seek(currPart * partSize);
                 file.write(chunk.getData());
             }
@@ -116,7 +112,6 @@ public class FileHandler implements Runnable {
     private Message send(MsgGetFile msg) {
         Path path = Paths.get(usersPath, msg.getUser(), msg.getPathDate());
         System.out.println("Sending file: " + path.toString());
-        System.out.println(path.toAbsolutePath().toString());
         RandomAccessFile file = null;
         try {
             file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
@@ -192,7 +187,7 @@ public class FileHandler implements Runnable {
     private byte[] getPart(RandomAccessFile file, int part) {
         try {
             if (part * partSize >= file.length()) {
-                throw new IllegalArgumentException("Argument part jest zbyt duzy.");
+                throw new IllegalArgumentException("Input argument part is too big.");
             }
             file.seek(part * partSize);
             byte[] buff = new byte[partSize];
@@ -272,7 +267,7 @@ public class FileHandler implements Runnable {
      */
     private Message sendList(String user) {
         Path path = Paths.get(usersPath,user + ".list");
-        System.out.println("Wysylam liste: " + path.toString());
+        System.out.println("Sending list: " + path.toString());
         RandomAccessFile file = null;
         try {
             file = new RandomAccessFile(path.toAbsolutePath().toString(), "rw");
@@ -302,7 +297,7 @@ public class FileHandler implements Runnable {
      */
     private Message deleteFile(String strPath, String date, String user) {
         strPath = strPath.substring(1);
-        System.out.println("Usuwam " + strPath);
+        System.out.println("Deleting " + strPath);
         Path path = Paths.get(usersPath, user, strPath + date);
         try {
             Files.delete(path);
@@ -324,9 +319,7 @@ public class FileHandler implements Runnable {
             String line;
             while ((line = br.readLine()) != null) {
                 String parts[] = line.split(";");
-                System.out.println(parts[0] + " " + strPath);
                 if (parts[0].equals(strPath)) {
-                    System.out.println("Wykryto");
                     continue;
                 }
                 bw.write(line + System.lineSeparator());
@@ -335,7 +328,7 @@ public class FileHandler implements Runnable {
             br.close();
             Files.move(tempPath, listPath, REPLACE_EXISTING);
 
-            System.out.println("Usunieto");
+            System.out.println("Deleted.");
             return new MsgOk();
         } catch (Exception e) {
             e.printStackTrace();

@@ -45,7 +45,7 @@ public class LoginHandler extends SimpleChannelInboundHandler<Message> {
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(";");
                 if (msglog.getUsername().equals(parts[0]) && msglog.getPassword().equals(parts[1])) {
-                    System.out.println("Zalogowano: " + msglog.getUsername());
+                    System.out.println("Logged in: " + msglog.getUsername());
                     ctx.writeAndFlush(new MsgOk());
 
                     ctx.pipeline().addLast(new FileServerHandler(inQueue, outQueue, msglog.getUsername(), partSize));
@@ -66,14 +66,14 @@ public class LoginHandler extends SimpleChannelInboundHandler<Message> {
      */
     @Override
     public void channelActive(final ChannelHandlerContext ctx) {
-        System.out.println("Polaczenie");
+        System.out.println("Connection");
         ChannelFuture f = ctx.writeAndFlush(new MsgSettings(partSize));
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause){
         // Close the connection when an exception is raised.
-        System.out.println("Zakonczono polaczenie");
+        System.out.println("Disconnected.");
         ctx.close();
     }
 
