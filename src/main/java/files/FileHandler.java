@@ -42,7 +42,7 @@ public class FileHandler implements Runnable {
                         outQueue.put(sendList(((MsgList) msg).getUser()));
                         continue;
                     case DELETE:
-                        outQueue.put(deleteFile(((MsgDelete) msg).getPath(), ((MsgDelete) msg).getUser()));
+                        outQueue.put(deleteFile(((MsgDelete) msg).getPath(), ((MsgDelete) msg).getDate(), ((MsgDelete) msg).getUser()));
                         continue;
                     case EXIT:
                         break;
@@ -138,11 +138,8 @@ public class FileHandler implements Runnable {
     }
 
     private MsgFileVer fileVer(MsgGetFileVer msg) {
-        /*if (true) {
-            String[]r = {"21", "22"};
-            return new MsgFileVer(r);
-        }*/
         String msgPath = msg.getPath();
+        msgPath = msgPath.replace("\\", "/");
         String filename = msg.getPath();
         if (msgPath.contains("/")) {
             String[] parts = msgPath.split("/");
@@ -150,12 +147,6 @@ public class FileHandler implements Runnable {
             msgPath = "";
             for (int i = 0; i < parts.length - 1; i++)
                 msgPath = msgPath + (i > 0 ? "/" : "") + parts[i];
-        } else if (msgPath.contains("\\")) {
-            String[] parts = msgPath.split("\\\\");
-            filename = parts[parts.length - 1];
-            msgPath = "";
-            for (int i = 0; i < parts.length - 1; i++)
-                msgPath = msgPath + (i > 0 ? "\\" : "") + parts[i];
         } else
             msgPath = "";
 
@@ -169,7 +160,7 @@ public class FileHandler implements Runnable {
             return new MsgFileVer("");
         for (File child : directoryListing) {
             Path childPath = child.toPath();
-            if (matcher.matches(childPath.getFileName())) {
+            if (childPath.getFileName().toString().length() > 19 && matcher.matches(childPath.getFileName())) {
                 String substring = childPath.toString().substring(childPath.toString().length() - 19);
                 substring = substring.replace("-", ":");
                 substring = substring.replace("_", " ");
@@ -177,7 +168,7 @@ public class FileHandler implements Runnable {
                 list.add(substring);
             }
         }
-        System.out.println("Lista: " + list);
+        //System.out.println("Lista: " + list);
         String dates = String.join(";",list);
         return new MsgFileVer(dates);
 
@@ -200,6 +191,7 @@ public class FileHandler implements Runnable {
     }
 
     private void registerFile(String path, String user, boolean hisVer) {
+        path = path.replace("\\", "/");
         Path listPath = Paths.get(usersPath,user+".list");
         // Utworz folder, jesli nie istnieje
         File fileList = new File(listPath.toAbsolutePath().toString());
@@ -279,14 +271,19 @@ public class FileHandler implements Runnable {
         }
     }
 
-    private Message deleteFile(String strPath, String user) {
+    private Message deleteFile(String strPath, String date, String user) {
+        strPath = strPath.substring(1);
         System.out.println("Usuwam " + strPath);
-        Path path = Paths.get(usersPath, user, strPath);
+        Path path = Paths.get(usersPath, user, strPath + date);
         try {
             Files.delete(path);
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        MsgFileVer versions = fileVer(new MsgGetFileVer(strPath, user));
+        if (!versions.getDates().equals(""))
+            return new MsgOk();
 
         Path listPath = Paths.get(usersPath, user + ".list");
         Path tempPath = Paths.get(usersPath, user + ".list.temp");

@@ -69,7 +69,7 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
                         return null;
                     inQueue.put(msg);
                     System.out.println("Part: " + ((MsgFileChunk) msg).getPart() + " " + fileParts);
-                    if (((MsgFileChunk) msg).getPart() == fileParts) {
+                    if (((MsgFileChunk) msg).getPart() == fileParts - 1) {
                         System.out.println("Odsylam OK");
                         return outQueue.take();
                     }
@@ -80,7 +80,7 @@ public class FileServerHandler extends SimpleChannelInboundHandler<Message>{
 
                     state = State.UPL;
                     sendFile(ctx, (MsgGetFile) msg);
-                    return new MsgOk();
+                    return null;
                 case GETFILEVER:
                     sendFileVer(ctx, (MsgGetFileVer) msg);
                     return null;
